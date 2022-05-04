@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ListenableFuture;
+import org.jetbrains.annotations.Nullable;
 import org.thingsboard.rule.engine.api.*;
 import org.thingsboard.rule.engine.api.util.TbNodeUtils;
 import org.thingsboard.server.common.data.id.EntityId;
@@ -30,6 +31,7 @@ import org.thingsboard.server.dao.timeseries.TimeseriesService;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -61,17 +63,11 @@ public class TbDuplicateMessageFilter implements TbNode {
     public void onMsg(TbContext tbContext, TbMsg tbMsg) throws ExecutionException, InterruptedException {
         TenantId tenantId = tbContext.getTenantId();
         EntityId entityId = tbMsg.getOriginator();
-        long msgTs = tbMsg.getTs();
-        JsonNode jsonMsgPayload;
+        JsonNode jsonMsgPayload = getJsonMsgPayload(tbContext, tbMsg);
 
-        try {
-            jsonMsgPayload = mapper.readTree(tbMsg.getData());
-        } catch (JsonProcessingException | IllegalArgumentException e) {
-            tbContext.tellFailure(tbMsg, e);
+        if (jsonMsgPayload == null)
             return;
-        }
 
-        // get latest timeseries data to see if any value in there is 'old'
         ListenableFuture<List<TsKvEntry>> requestLatestTimeseries = timeseriesService.findAllLatest(tenantId, entityId);
         List<TsKvEntry> latestTimeseries = requestLatestTimeseries.get();
 
@@ -83,21 +79,28 @@ public class TbDuplicateMessageFilter implements TbNode {
         Iterator<String> payLoadAttributes = jsonMsgPayload.fieldNames();
         while (payLoadAttributes.hasNext()) {
             String payloadAttribute = payLoadAttributes.next();
-
-            if (latestTimeseries.stream()
-                    .noneMatch(tsKvEntry -> tsKvEntry.getKey().equals(payloadAttribute))) {
-                tbContext.tellNext(tbMsg, "True");
-                return;
-            }
-
-            if (latestTimeseries.stream()
+            Optional<TsKvEntry> lastStoredTimeSeries = latestTimeseries.stream()
                     .filter(tsKvEntry -> tsKvEntry.getKey().equals(payloadAttribute))
-                    .anyMatch(tsKvEntry -> tsKvEntry.getTs() < tbMsg.getTs() - maxTimeBetweenMessagesInMillis)) {
+                    .findAny();
+
+            if (lastStoredTimeSeries.isEmpty() || lastStoredTimeSeries.get().getTs() < tbMsg.getTs() - maxTimeBetweenMessagesInMillis) {
                 tbContext.tellNext(tbMsg, "True");
                 return;
             }
         }
         tbContext.tellNext(tbMsg, "False");
+    }
+
+    @Nullable
+    private JsonNode getJsonMsgPayload(TbContext tbContext, TbMsg tbMsg) {
+        JsonNode jsonMsgPayload;
+        try {
+            jsonMsgPayload = mapper.readTree(tbMsg.getData());
+        } catch (JsonProcessingException | IllegalArgumentException e) {
+            tbContext.tellFailure(tbMsg, e);
+            return null;
+        }
+        return jsonMsgPayload;
     }
 
     @Override
