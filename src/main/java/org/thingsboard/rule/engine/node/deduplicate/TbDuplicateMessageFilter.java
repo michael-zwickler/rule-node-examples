@@ -18,6 +18,8 @@ package org.thingsboard.rule.engine.node.deduplicate;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.jetbrains.annotations.Nullable;
 import org.thingsboard.rule.engine.api.*;
@@ -33,6 +35,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 
 @RuleNode(
         type = ComponentType.FILTER,
@@ -70,20 +73,31 @@ public class TbDuplicateMessageFilter implements TbNode {
         ListenableFuture<List<TsKvEntry>> requestLatestTimeseries = timeseriesService.findAllLatest(tenantId, entityId);
         List<TsKvEntry> latestTimeseries = requestLatestTimeseries.get();
 
-        Iterator<String> payLoadAttributes = jsonMsgPayload.fieldNames();
-        while (payLoadAttributes.hasNext()) {
-            String payloadAttribute = payLoadAttributes.next();
-            Optional<TsKvEntry> lastStoredTimeSeries = latestTimeseries.stream()
-                    .filter(tsKvEntry -> tsKvEntry.getKey().equals(payloadAttribute))
-                    .findAny();
+        Futures.addCallback(requestLatestTimeseries, new FutureCallback<List<TsKvEntry>>() {
+            @Override
+            public void onSuccess(List<TsKvEntry> tsKvEntryList) {
+                Iterator<String> payLoadAttributes = jsonMsgPayload.fieldNames();
+                while (payLoadAttributes.hasNext()) {
+                    String payloadAttribute = payLoadAttributes.next();
+                    Optional<TsKvEntry> lastStoredTimeSeries = latestTimeseries.stream()
+                            .filter(tsKvEntry -> tsKvEntry.getKey().equals(payloadAttribute))
+                            .findAny();
 
-            if (lastStoredTimeSeries.isEmpty()
-                    || lastStoredTimeSeries.get().getTs() < tbMsg.getTs() - maxTimeBetweenMessagesInMillis) {
-                tbContext.tellNext(tbMsg, "True");
-                return;
+                    if (lastStoredTimeSeries.isEmpty()
+                            || lastStoredTimeSeries.get().getTs() < tbMsg.getTs() - maxTimeBetweenMessagesInMillis) {
+                        tbContext.tellNext(tbMsg, "True");
+                        return;
+                    }
+                }
+                tbContext.tellNext(tbMsg, "False");
             }
-        }
-        tbContext.tellNext(tbMsg, "False");
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                tbContext.tellFailure(tbMsg, throwable);
+            }
+        });
+
     }
 
     @Nullable
