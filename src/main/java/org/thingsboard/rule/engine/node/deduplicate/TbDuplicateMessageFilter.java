@@ -71,11 +71,6 @@ public class TbDuplicateMessageFilter implements TbNode {
         ListenableFuture<List<TsKvEntry>> requestLatestTimeseries = timeseriesService.findAllLatest(tenantId, entityId);
         List<TsKvEntry> latestTimeseries = requestLatestTimeseries.get();
 
-        if (latestTimeseries.isEmpty()) {
-            tbContext.tellNext(tbMsg, "True");
-            return;
-        }
-
         Iterator<String> payLoadAttributes = jsonMsgPayload.fieldNames();
         while (payLoadAttributes.hasNext()) {
             String payloadAttribute = payLoadAttributes.next();
