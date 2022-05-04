@@ -217,8 +217,7 @@ class TbDuplicateMessageFilterTest {
 
     @Test
     void whenOnMsg_whenPayloadContainsKeyThatIsNotYetInDatabase_MsgShouldBePassedThrough() throws InterruptedException, ExecutionException {
-        // Create new incoming message
-        String payload = "{\"temperature\":22.5, \"humudity\": 65.0}";
+        String payload = "{\"temperature\":22.5, \"humidity\": 65.0}";
         TbMsg message = TbMsg.newMsg("POST_TELEMETRY_REQUEST", entityId, metaData, payload, callback);
 
         KvEntry kvEntry = new DoubleDataEntry("humiditiy", 65.0);
@@ -228,10 +227,8 @@ class TbDuplicateMessageFilterTest {
         settableFuture.set(entryList);
         when(timeseriesService.findAllLatest(tenantId, entityId)).thenReturn(settableFuture);
 
-        //execute method under test
         node.onMsg(ctx, message);
 
-        // assertions
         verify(ctx, times(1)).tellNext(message, "True");
         verify(ctx, never()).tellNext(message, "False");
         verify(ctx, never()).tellFailure(any(), any());

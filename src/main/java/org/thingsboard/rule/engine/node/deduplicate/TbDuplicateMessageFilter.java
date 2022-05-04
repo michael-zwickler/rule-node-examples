@@ -33,7 +33,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 @RuleNode(
         type = ComponentType.FILTER,
@@ -78,7 +77,8 @@ public class TbDuplicateMessageFilter implements TbNode {
                     .filter(tsKvEntry -> tsKvEntry.getKey().equals(payloadAttribute))
                     .findAny();
 
-            if (lastStoredTimeSeries.isEmpty() || lastStoredTimeSeries.get().getTs() < tbMsg.getTs() - maxTimeBetweenMessagesInMillis) {
+            if (lastStoredTimeSeries.isEmpty()
+                    || lastStoredTimeSeries.get().getTs() < tbMsg.getTs() - maxTimeBetweenMessagesInMillis) {
                 tbContext.tellNext(tbMsg, "True");
                 return;
             }
