@@ -42,8 +42,8 @@ import java.util.concurrent.Executors;
         name = "Filter duplicate messages",
         relationTypes = {"True", "False"},
         configClazz = TbDuplicateMessageFilterConfiguration.class,
-        nodeDescription = "Checks if the supplied values are similiar to ones recently submitted",
-        nodeDetails = "filters",
+        nodeDescription = "Checks if a message only contains attributes, that are currently in block-out time, so has already pushed a message recently. If there is any new attribute or any attribute outside time block-out provided, the message will pass through",
+        nodeDetails = "default block-out time: 10s",
         uiResources = {"static/rulenode/custom-nodes-config.js"},
         configDirective = "tbFilterNodeCheckKeyConfig"
 )
@@ -70,16 +70,13 @@ public class TbDuplicateMessageFilter implements TbNode {
         if (jsonMsgPayload == null)
             return;
 
-        ListenableFuture<List<TsKvEntry>> requestLatestTimeseries = timeseriesService.findAllLatest(tenantId, entityId);
-        List<TsKvEntry> latestTimeseries = requestLatestTimeseries.get();
-
-        Futures.addCallback(requestLatestTimeseries, new FutureCallback<List<TsKvEntry>>() {
+        Futures.addCallback(timeseriesService.findAllLatest(tenantId, entityId), new FutureCallback<List<TsKvEntry>>() {
             @Override
             public void onSuccess(List<TsKvEntry> tsKvEntryList) {
                 Iterator<String> payLoadAttributes = jsonMsgPayload.fieldNames();
                 while (payLoadAttributes.hasNext()) {
                     String payloadAttribute = payLoadAttributes.next();
-                    Optional<TsKvEntry> lastStoredTimeSeries = latestTimeseries.stream()
+                    Optional<TsKvEntry> lastStoredTimeSeries = tsKvEntryList.stream()
                             .filter(tsKvEntry -> tsKvEntry.getKey().equals(payloadAttribute))
                             .findAny();
 
