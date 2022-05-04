@@ -60,7 +60,7 @@ public class TbDuplicateMessageFilter implements TbNode {
     }
 
     @Override
-    public void onMsg(TbContext tbContext, TbMsg tbMsg) throws ExecutionException, InterruptedException {
+    public void onMsg(TbContext tbContext, TbMsg tbMsg) {
         TenantId tenantId = tbContext.getTenantId();
         EntityId entityId = tbMsg.getOriginator();
         JsonNode jsonMsgPayload = getJsonMsgPayload(tbContext, tbMsg);
@@ -68,7 +68,7 @@ public class TbDuplicateMessageFilter implements TbNode {
         if (jsonMsgPayload == null)
             return;
 
-        Futures.addCallback(timeseriesService.findAllLatest(tenantId, entityId), new FutureCallback<List<TsKvEntry>>() {
+        Futures.addCallback(timeseriesService.findAllLatest(tenantId, entityId), new FutureCallback<>() {
             @Override
             public void onSuccess(List<TsKvEntry> tsKvEntryList) {
                 Iterator<String> payLoadAttributes = jsonMsgPayload.fieldNames();
