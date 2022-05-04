@@ -34,5 +34,3 @@ public class TbCalculateSumNodeConfiguration implements NodeConfiguration<TbCalc
     }
 
 }
-
-

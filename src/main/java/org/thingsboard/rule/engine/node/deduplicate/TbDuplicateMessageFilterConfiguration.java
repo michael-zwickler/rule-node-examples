@@ -13,20 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.thingsboard.rule.engine.node.filter;
+package org.thingsboard.rule.engine.node.deduplicate;
 
 import lombok.Data;
 import org.thingsboard.rule.engine.api.NodeConfiguration;
 
 @Data
-public class TbKeyFilterNodeConfiguration implements NodeConfiguration<TbKeyFilterNodeConfiguration> {
+public class TbDuplicateMessageFilterConfiguration implements NodeConfiguration<TbDuplicateMessageFilterConfiguration> {
 
-    private String key;
+    private static final long DEFAULT_MAX_TIME_BETWEEN_MESSAGES_IN_MILLIS = 10_000L;
+    private long maxTimeBetweenMessagesInMillis;
 
     @Override
-    public TbKeyFilterNodeConfiguration defaultConfiguration() {
-        TbKeyFilterNodeConfiguration configuration = new TbKeyFilterNodeConfiguration();
-        configuration.setKey(null);
-        return configuration;
+    public TbDuplicateMessageFilterConfiguration defaultConfiguration() {
+        TbDuplicateMessageFilterConfiguration config = new TbDuplicateMessageFilterConfiguration();
+        config.setMaxTimeBetweenMessagesInMillis(DEFAULT_MAX_TIME_BETWEEN_MESSAGES_IN_MILLIS);
+        return config;
     }
 }
